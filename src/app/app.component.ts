@@ -2,6 +2,9 @@ import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import {
   GoogleMapsModule,
   MapBicyclingLayer,
+  MapInfoWindow,
+  MapMarker,
+  MapMarkerClusterer,
   MapPolygon,
   MapPolyline,
   MapRectangle,
@@ -11,6 +14,8 @@ import { RouterOutlet } from '@angular/router';
 import { MapboxComponent } from './mapbox/mapbox.component';
 import * as togpx from '@tmcw/togeojson';
 import { CommonModule } from '@angular/common';
+import { VisualizadorCodigosComponent } from './visualizador-codigos/visualizador-codigos.component';
+import { AngularMaterialModule } from './angular-material/angular-material.module';
 
 @Component({
   selector: 'app-root',
@@ -25,19 +30,27 @@ import { CommonModule } from '@angular/common';
     MapPolyline,
     MapRectangle,
     MapboxComponent,
+    VisualizadorCodigosComponent,
+    MapMarkerClusterer,
+    AngularMaterialModule,
   ],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
 })
 export class AppComponent implements OnInit {
   @ViewChild('map') mapContainer!: ElementRef;
-  map!: google.maps.Map;
+  @ViewChild(MapInfoWindow) infoWindow!: MapInfoWindow;
 
+  map!: google.maps.Map;
   title = 'maps';
   tpMap = 'GOOGLE';
+  fileName = '';
 
-  center: google.maps.LatLngLiteral = { lat: 24, lng: 12 };
-  zoom = 15;
+  center: google.maps.LatLngLiteral = {
+    lat: -14.235004,
+    lng: -51.92528
+  };
+  zoom = 4;
   display!: google.maps.LatLngLiteral;
 
   polygonOptions: google.maps.PolygonOptions = {
@@ -63,15 +76,38 @@ export class AppComponent implements OnInit {
   // kmlUrl = 'assets/kmls/175-1706194535-540571.kml';
   kmlUrl =
     'https://developers.google.com/maps/documentation/javascript/examples/kml/westcampus.kml';
-  linhasCoordenadas!: any[];
+  markerClustererImagePath =
+    'https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/m';
+
+    linhasCoordenadas!: any[];
   path!: { lng: number; lat: number }[];
   polygons!: google.maps.PolygonOptions[];
+
+  data = {
+    "type": "FeatureCollection",
+    "features": []
+  }
 
   ngOnInit(): void {}
 
   moveMap(event: google.maps.MapMouseEvent) {
     console.log(event.latLng?.toJSON());
   }
+
+  handlePolygonClick(event: google.maps.PolyMouseEvent) {
+    this.polygons.forEach((polygonOptions) => {
+      const polygon = new google.maps.Polygon(polygonOptions);
+      if (event.latLng && google.maps.geometry.poly.containsLocation(event.latLng, polygon)) {
+        // The clicked location is within the polygon
+        console.log('Clicked inside polygon:', polygonOptions);
+      }
+    });
+  }
+
+  openInfoWindow(marker: MapMarker) {
+    this.infoWindow.open(marker);
+  }
+
 
   move(event: google.maps.MapMouseEvent) {
     console.log(event);
@@ -99,10 +135,12 @@ export class AppComponent implements OnInit {
     reader.onload = (event) => {
       const kmlString = event?.target?.result as string;
       // const kml = this.converterKmlParaCoordenas(kmlString);
+      console.log(kmlString);
       const geoJson = this.kmlToGeoJson(kmlString);
       // this.geoJsonToLatLngLiteral(geoJson);
       this.polygons = this.geoJsonToLatLngLiteral_(geoJson);
       const geoJsonString = JSON.stringify(geoJson, null, 2);
+      this.data = JSON.parse(geoJsonString);
 
       // console.log(geoJsonString);
     };
@@ -113,6 +151,19 @@ export class AppComponent implements OnInit {
     const inputElement = event.target as HTMLInputElement;
     if (inputElement.files && inputElement.files.length > 0) {
       const file = inputElement.files[0];
+
+      if (file) {
+
+          this.fileName = file.name;
+
+          const formData = new FormData();
+
+          // formData.append("thumbnail", file);
+
+          // const upload$ = this.http.post("/api/thumbnail-upload", formData);
+
+          // upload$.subscribe();
+      }
       this.convertFile(file);
       // this.converterKmlParaCoordenas(file);
     }
@@ -214,11 +265,16 @@ export class AppComponent implements OnInit {
           lng: centerLatLng.lng(),
         }; // Convert to LatLngLiteral
 
+        this.zoom = 15;
+
         return {
           paths: new google.maps.MVCArray(paths),
-          fillColor: feature?.properties?.fill || 'red', // Default color if not provided
+          fillColor: feature?.properties?.fill || '#0284C7', // Default color if not provided
           strokeColor: feature?.properties?.stroke || 'black', // Default color if not provided
           center: this.center, // Use the LatLngLiteral for the center
+          area_ha: feature?.properties?.area_ha,
+          nome: feature?.properties?.nome,
+          name: feature?.properties?.name,
         };
       }
     );

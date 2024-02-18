@@ -1,8 +1,8 @@
 <h1 class="text-3xl font-bold text-center bg-red-600">Google maps</h1>
 
 @if (tpMap === 'GOOGLE') {
-  <div class="w-full flex justify-center py-4">
-    <div id="maps" class="w-[700px] h-[400px]">
+  <div class="w-full flex justify-center py-2 px-4 relative">
+    <div id="maps" class="w-[70vw] h-[90vh]">
       <google-map
           height="100%"
           width="100%"
@@ -14,8 +14,14 @@
         <!-- <map-kml-layer [url]="kmlUrl" /> -->
         <!-- @for (polygon of polygons; track $index) {
         } -->
-        <map-polygon *ngFor="let polygon of polygons" [options]="polygon" [paths]="polygon?.paths || []"></map-polygon>
-
+        <map-polygon *ngFor="let polygon of polygons" [options]="polygon" (polygonClick)="handlePolygonClick($event)"
+          [paths]="polygon?.paths || []"></map-polygon>
+        <map-info-window>
+          <div class="font-semibold text-2xl">Infos</div>
+        </map-info-window>
+        <map-marker #marker="mapMarker" [position]="center" (mapClick)="openInfoWindow(marker)"/>
+        <!-- <map-marker-clusterer [imagePath]="markerClustererImagePath">
+        </map-marker-clusterer> -->
         <!-- Polygon principal -->
         <!-- <map-polygon [paths]="vertices" [options]="polygonOptions">
           </map-polygon> -->
@@ -26,8 +32,33 @@
       </google-map>
     </div>
 
+    <div class="w-[30vw] h-[90vh]">
+      <div class="flex text-white">
+        <button type="button" mat-stroked-button class="bg-gray-500 shadow-sm px-4 py-2 hover:bg-gray-400">GeoJSON</button>
+        <button type="button" mat-stroked-button class="bg-gray-500 shadow-sm px-4 py-2 hover:bg-gray-400">KML</button>
+        <button type="button" mat-stroked-button class="bg-gray-500 shadow-sm px-4 py-2 hover:bg-gray-400">LatLngLiteral</button>
+      </div>
+      <app-visualizador-codigos [jsonData]="data"></app-visualizador-codigos>
+    </div>
+
+    <div class="absolute left-52 top-6 flex items-center justify-center">
+      <!-- <input type="file" (change)="onFileSelected($event)" /> -->
+      <input type="file" class="file-input bg-green-500"
+         (change)="onFileSelected($event)" #fileUpload>
+
+      <div class="file-upload">
+
+        {{fileName || "No file uploaded yet."}}
+
+          <button mat-mini-fab color="primary" class="upload-btn"
+            (click)="fileUpload.click()">
+              <mat-icon>attach_file</mat-icon>
+          </button>
+      </div>
+    </div>
+
   </div>
-  <input type="file" (change)="onFileSelected($event)" />
+  <!-- <input type="file" (change)="onFileSelected($event)" /> -->
   <!-- <div class="w-full font-semibold text-3xl mt-10 flex justify-center">
     <h1>MAPS PURO</h1>
     <div class="map" id="map" #map></div>
