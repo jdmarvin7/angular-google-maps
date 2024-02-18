@@ -65,6 +65,7 @@ export class AppComponent implements OnInit {
     'https://developers.google.com/maps/documentation/javascript/examples/kml/westcampus.kml';
   linhasCoordenadas!: any[];
   path!: { lng: number; lat: number }[];
+  polygons!: google.maps.PolygonOptions[];
 
   ngOnInit(): void {}
 
@@ -99,7 +100,8 @@ export class AppComponent implements OnInit {
       const kmlString = event?.target?.result as string;
       // const kml = this.converterKmlParaCoordenas(kmlString);
       const geoJson = this.kmlToGeoJson(kmlString);
-      this.geoJsonToLatLngLiteral(geoJson);
+      // this.geoJsonToLatLngLiteral(geoJson);
+      this.polygons = this.geoJsonToLatLngLiteral_(geoJson);
       const geoJsonString = JSON.stringify(geoJson, null, 2);
 
       // console.log(geoJsonString);
@@ -139,7 +141,7 @@ export class AppComponent implements OnInit {
             });
           }
 
-          const arrVertices = []
+          const arrVertices = [];
 
           arrVertices?.push({
             id: 1,
@@ -163,9 +165,17 @@ export class AppComponent implements OnInit {
         // Flatten the array of arrays to get a single array of LatLngLiteral objects
         return feature.geometry.geometries
           .filter((geometry: any) => geometry.type === 'Polygon')
-          .flatMap((geometry: any) => geometry.coordinates[0].map((coord: any) => ({ lat: coord[1], lng: coord[0] })));
+          .flatMap((geometry: any) =>
+            geometry.coordinates[0].map((coord: any) => ({
+              lat: coord[1],
+              lng: coord[0],
+            }))
+          );
       } else if (feature.geometry.type === 'Polygon') {
-        return feature.geometry.coordinates[0].map((coord: any) => ({ lat: coord[1], lng: coord[0] }));
+        return feature.geometry.coordinates[0].map((coord: any) => ({
+          lat: coord[1],
+          lng: coord[0],
+        }));
       }
       return [];
     });
@@ -176,19 +186,43 @@ export class AppComponent implements OnInit {
     this.center = latLngArrays[0][0];
   }
 
-  // criarGeoJson(): void {
-  //   const kmlFile = '../../RS-4309001-30ABD53C8505456C90D17531A5006FC0-1707998248-649524.kml';
-  //   const geoJsonFile = '../../output.geojson';
-  //   this.convertFile(kmlFile, geoJsonFile);
-  // }
+  geoJsonToLatLngLiteral_(geoJson: any): google.maps.PolygonOptions[] {
+    const polygons: google.maps.PolygonOptions[] = geoJson.features.map(
+      (feature: any) => {
+        let paths: google.maps.LatLng[] = [];
 
-  // convertFile(inputFilePath: string, outputFilePath: string): void {
-  //   const kmlString = fs?.readFileSync(inputFilePath, 'utf-8');
-  //   const geoJson = this.kmlToGeoJson(kmlString);
-  //   const geoJsonString = JSON.stringify(geoJson, null, 2);
+        if (feature.geometry.type === 'GeometryCollection') {
+          paths = feature.geometry.geometries
+            .filter((geometry: any) => geometry.type === 'Polygon')
+            .flatMap((geometry: any) =>
+              geometry.coordinates[0].map(
+                (coord: any) => new google.maps.LatLng(coord[1], coord[0])
+              )
+            );
+        } else if (feature.geometry.type === 'Polygon') {
+          paths = feature.geometry.coordinates[0].map(
+            (coord: any) => new google.maps.LatLng(coord[1], coord[0])
+          );
+        }
 
-  //   fs.writeFileSync(outputFilePath, geoJsonString);
+        // Calculate the center of the paths
+        const bounds = new google.maps.LatLngBounds();
+        paths.forEach((path) => bounds.extend(path));
+        const centerLatLng = bounds.getCenter(); // This is a LatLng object
+        this.center = {
+          lat: centerLatLng.lat(),
+          lng: centerLatLng.lng(),
+        }; // Convert to LatLngLiteral
 
-  //   console.log(`Conversion complete. GeoJSON saved to ${outputFilePath}`);
-  // }
+        return {
+          paths: new google.maps.MVCArray(paths),
+          fillColor: feature?.properties?.fill || 'red', // Default color if not provided
+          strokeColor: feature?.properties?.stroke || 'black', // Default color if not provided
+          center: this.center, // Use the LatLngLiteral for the center
+        };
+      }
+    );
+
+    return polygons;
+  }
 }
